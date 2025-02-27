@@ -45,12 +45,83 @@ const conversionUnits = {
     }
 };
 
+// Common conversion pairs (what users typically want to convert between)
+const commonConversionPairs = {
+    length: {
+        meter: 'foot',
+        kilometer: 'mile',
+        centimeter: 'inch',
+        millimeter: 'inch',
+        inch: 'centimeter',
+        foot: 'meter',
+        yard: 'meter',
+        mile: 'kilometer'
+    },
+    weight: {
+        kilogram: 'pound',
+        gram: 'ounce',
+        milligram: 'ounce',
+        pound: 'kilogram',
+        ounce: 'gram',
+        ton: 'kilogram'
+    },
+    temperature: {
+        celsius: 'fahrenheit',
+        fahrenheit: 'celsius',
+        kelvin: 'celsius'
+    },
+    volume: {
+        liter: 'gallon',
+        milliliter: 'fluidOunce',
+        cubicMeter: 'gallon',
+        gallon: 'liter',
+        quart: 'liter',
+        pint: 'milliliter',
+        cup: 'milliliter',
+        fluidOunce: 'milliliter'
+    }
+};
+
+// Format number to remove trailing zeros
+function formatNumber(num) {
+    // Convert to string with 6 decimal places
+    let formatted = num.toFixed(6);
+    
+    // Remove trailing zeros
+    formatted = formatted.replace(/\.?0+$/, '');
+    
+    // If it ends with a decimal point, remove it
+    if (formatted.endsWith('.')) {
+        formatted = formatted.slice(0, -1);
+    }
+    
+    return formatted;
+}
+
 // Initialize the app
 function init() {
     // Set up event listeners
     conversionTypeSelect.addEventListener('change', updateUnitOptions);
     inputValue.addEventListener('input', performConversion);
-    fromUnitSelect.addEventListener('change', performConversion);
+    fromUnitSelect.addEventListener('change', function() {
+        // When "from" unit changes, check if it's the same as "to" unit
+        if (fromUnitSelect.value === toUnitSelect.value) {
+            // Set "to" unit to a common conversion pair
+            const conversionType = conversionTypeSelect.value;
+            const fromUnit = fromUnitSelect.value;
+            const suggestedToUnit = commonConversionPairs[conversionType][fromUnit];
+            
+            if (suggestedToUnit) {
+                toUnitSelect.value = suggestedToUnit;
+            } else {
+                // If no common pair, just select a different unit
+                if (toUnitSelect.options.length > 1) {
+                    toUnitSelect.selectedIndex = (fromUnitSelect.selectedIndex + 1) % toUnitSelect.options.length;
+                }
+            }
+        }
+        performConversion();
+    });
     toUnitSelect.addEventListener('change', performConversion);
     swapUnitsBtn.addEventListener('click', swapUnits);
     
@@ -86,7 +157,25 @@ function updateUnitOptions() {
     
     // Set default selections (different units)
     if (Object.keys(units).length > 1) {
-        toUnitSelect.selectedIndex = 1;
+        // Set "from" unit to first option
+        fromUnitSelect.selectedIndex = 0;
+        
+        // Set "to" unit based on common conversion pairs
+        const fromUnit = fromUnitSelect.value;
+        const suggestedToUnit = commonConversionPairs[conversionType][fromUnit];
+        
+        if (suggestedToUnit) {
+            // Find the index of the suggested unit
+            for (let i = 0; i < toUnitSelect.options.length; i++) {
+                if (toUnitSelect.options[i].value === suggestedToUnit) {
+                    toUnitSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        } else {
+            // Default to second option if no common pair
+            toUnitSelect.selectedIndex = 1;
+        }
     }
     
     // Perform conversion with new units
@@ -124,11 +213,11 @@ function performConversion() {
         const baseValue = value / fromFactor;
         result = baseValue * toFactor;
         
-        formula = `${value} ${fromUnit} × (${toFactor} / ${fromFactor}) = ${result.toFixed(6)} ${toUnit}`;
+        formula = `${value} ${fromUnit} × (${toFactor} / ${fromFactor}) = ${formatNumber(result)} ${toUnit}`;
     }
     
-    // Display the result
-    resultValue.textContent = result.toFixed(6);
+    // Display the result with formatted number
+    resultValue.textContent = formatNumber(result);
     resultUnit.textContent = toUnit;
     formulaText.textContent = formula;
 }
@@ -174,23 +263,23 @@ function getTemperatureFormula(value, fromUnit, toUnit) {
     switch (fromUnit) {
         case 'celsius':
             if (toUnit === 'fahrenheit') {
-                return `${value}°C × (9/5) + 32 = ${(value * 9/5 + 32).toFixed(6)}°F`;
+                return `${value}°C × (9/5) + 32 = ${formatNumber(value * 9/5 + 32)}°F`;
             } else if (toUnit === 'kelvin') {
-                return `${value}°C + 273.15 = ${(value + 273.15).toFixed(6)}K`;
+                return `${value}°C + 273.15 = ${formatNumber(value + 273.15)}K`;
             }
             break;
         case 'fahrenheit':
             if (toUnit === 'celsius') {
-                return `(${value}°F - 32) × (5/9) = ${((value - 32) * 5/9).toFixed(6)}°C`;
+                return `(${value}°F - 32) × (5/9) = ${formatNumber((value - 32) * 5/9)}°C`;
             } else if (toUnit === 'kelvin') {
-                return `(${value}°F - 32) × (5/9) + 273.15 = ${((value - 32) * 5/9 + 273.15).toFixed(6)}K`;
+                return `(${value}°F - 32) × (5/9) + 273.15 = ${formatNumber((value - 32) * 5/9 + 273.15)}K`;
             }
             break;
         case 'kelvin':
             if (toUnit === 'celsius') {
-                return `${value}K - 273.15 = ${(value - 273.15).toFixed(6)}°C`;
+                return `${value}K - 273.15 = ${formatNumber(value - 273.15)}°C`;
             } else if (toUnit === 'fahrenheit') {
-                return `(${value}K - 273.15) × (9/5) + 32 = ${((value - 273.15) * 9/5 + 32).toFixed(6)}°F`;
+                return `(${value}K - 273.15) × (9/5) + 32 = ${formatNumber((value - 273.15) * 9/5 + 32)}°F`;
             }
             break;
     }
